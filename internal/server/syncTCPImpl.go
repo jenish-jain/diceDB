@@ -2,33 +2,59 @@ package server
 
 import (
 	"diceDB/config"
+	"diceDB/internal"
+	diceIO "diceDB/internal/io"
+	"fmt"
 	"io"
 	"log"
 	"net"
 	"strconv"
+	"strings"
 )
 
 type syncTCPImpl struct {
-	configs *config.Configs
+	configs   *config.Configs
+	decoder   diceIO.Decoder
+	evaluator internal.Evaluator
 }
 
-func readCommand(c net.Conn) (string, error) {
+func (s syncTCPImpl) decodeByteToTokens(data []byte) ([]string, error) {
+	token, err := s.decoder.Decode(data)
+	if err != nil {
+		return nil, err
+	}
+
+	return []string{token.(string)}, nil
+}
+
+func (s syncTCPImpl) readCommand(c net.Conn) (*internal.DiceCmd, error) {
 	// TODO: Max read in one shot is 512 bytes
 	// To allow input > 512 bytes, then repeated read until
 	// we get EOF or designated delimiter
 	var buf = make([]byte, 512)
 	n, err := c.Read(buf[:])
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	return string(buf[:n]), nil
+	tokens, err := s.decodeByteToTokens(buf[:n])
+	if err != nil {
+		return nil, err
+	}
+	return &internal.DiceCmd{
+		Cmd:  internal.CommandName(strings.ToUpper(tokens[0])),
+		Args: tokens[1:],
+	}, nil
 }
 
-func respond(cmd string, c net.Conn) error {
-	if _, err := c.Write([]byte(cmd)); err != nil {
-		return err
+func respondError(err error, c net.Conn) {
+	c.Write([]byte(fmt.Sprintf("-%s\r\n", err)))
+}
+
+func (s syncTCPImpl) respond(cmd *internal.DiceCmd, c net.Conn) {
+	err := s.evaluator.Do(cmd, c)
+	if err != nil {
+		respondError(err, c)
 	}
-	return nil
 }
 
 func (s syncTCPImpl) Run() {
@@ -56,7 +82,7 @@ func (s syncTCPImpl) Run() {
 
 		for {
 			// over the socket, continuously read the commands and print it out
-			cmd, err := readCommand(client)
+			cmd, err := s.readCommand(client)
 			if err != nil {
 				err := client.Close()
 				if err != nil {
@@ -70,14 +96,11 @@ func (s syncTCPImpl) Run() {
 				log.Printf("error reading client command %+v \n", err)
 			}
 
-			log.Printf("received command %s", cmd)
-			if err = respond(cmd, client); err != nil {
-				log.Println("write error : ", err)
-			}
+			s.respond(cmd, client)
 		}
 	}
 }
 
-func NewSyncTCPServer(configs *config.Configs) Server {
-	return &syncTCPImpl{configs: configs}
+func NewSyncTCPServer(configs *config.Configs, decoder diceIO.Decoder, evaluator internal.Evaluator) Server {
+	return &syncTCPImpl{configs: configs, decoder: decoder, evaluator: evaluator}
 }

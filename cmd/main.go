@@ -2,6 +2,8 @@ package main
 
 import (
 	"diceDB/config"
+	"diceDB/internal"
+	"diceDB/internal/io"
 	"diceDB/internal/server"
 	"flag"
 	"fmt"
@@ -19,7 +21,9 @@ func getConfigs() *config.Configs {
 func main() {
 	configs := getConfigs()
 	fmt.Println("rolling the dice 🎲")
-	syncTCPServer := server.NewSyncTCPServer(configs)
+	respDecoder := io.NewRESPDecoder()
+	respEncoder := io.NewRESPEncoder()
+	syncTCPServer := server.NewSyncTCPServer(configs, respDecoder, internal.NewEvaluator(respEncoder))
 	syncTCPServer.Run()
 
 }
