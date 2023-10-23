@@ -5,7 +5,7 @@ import (
 )
 
 // protocol spec : https://redis.io/docs/reference/protocol-spec/
-type respImpl struct {
+type respDecoder struct {
 }
 
 // reads the length typically the first integer of the string
@@ -116,7 +116,7 @@ func decodeOne(data []byte) (interface{}, int, error) {
 	return nil, 0, nil
 }
 
-func (r respImpl) Decode(data []byte) (interface{}, error) {
+func (r respDecoder) Decode(data []byte) (interface{}, error) {
 	if len(data) == 0 {
 		return nil, errors.New("no data")
 	}
@@ -125,5 +125,5 @@ func (r respImpl) Decode(data []byte) (interface{}, error) {
 }
 
 func NewRESPDecoder() Decoder {
-	return &respImpl{}
+	return &respDecoder{}
 }
