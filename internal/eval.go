@@ -17,7 +17,7 @@ type Evaluator interface {
 }
 
 func InvalidArgumentCountError(commandName CommandName) error {
-	return errors.New(fmt.Sprintf("ERR wrong number of arguments for `%s` command", commandName))
+	return fmt.Errorf("ERR wrong number of arguments for `%s` command", commandName)
 }
 
 func (e evalImpl) ping(args []string, con net.Conn) error {

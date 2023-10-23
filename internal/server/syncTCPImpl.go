@@ -77,7 +77,7 @@ func (s syncTCPImpl) Run() {
 		}
 
 		// increment the number of concurrent clients
-		conClients += 1
+		conClients++
 		log.Printf("client connected with address %+v , total concurrent client count %d \n", client.RemoteAddr(), conClients)
 
 		for {
@@ -88,7 +88,7 @@ func (s syncTCPImpl) Run() {
 				if err != nil {
 					panic(err)
 				}
-				conClients -= 1
+				conClients--
 				log.Printf("client with remote address %+v disconnected !, remaining concurrent client count %d \n", client.RemoteAddr(), conClients)
 				if err == io.EOF {
 					break
